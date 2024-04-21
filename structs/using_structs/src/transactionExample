@@ -1,0 +1,47 @@
+# Define a struct to represent a transaction
+struct Transaction {
+    sender: felt,
+    receiver: felt,
+    amount: felt,
+}
+
+# Define a struct to represent a block
+struct Block {
+    prev_block_hash: felt,
+    transactions: Transaction*,
+    transaction_count: felt,
+    nonce: felt,
+}
+
+# Function to calculate the hash of a block
+func block_hash(block: Block) -> felt {
+    let transactions_bytes = cast(block.transactions, felt*);
+    let (hash) = pedersen([block.prev_block_hash, block.transaction_count, block.nonce, cast(transactions_bytes, felt)]);
+    return hash;
+}
+
+# Function to create a new transaction
+func create_transaction(sender: felt, receiver: felt, amount: felt) -> Transaction {
+    let transaction = Transaction(sender=sender, receiver=receiver, amount=amount);
+    return transaction;
+}
+
+# Function to create a new block
+func create_block(prev_block_hash: felt, transactions: Transaction*, transaction_count: felt) -> (Block, felt) {
+    # Find a nonce that makes the block hash meet the target difficulty
+    let target_difficulty = 0x00000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
+    let (block, nonce) = maybe_create_block(prev_block_hash, transactions, transaction_count, 0);
+    let block_hash = block_hash(block);
+    while block_hash > target_difficulty {
+        let (new_block, new_nonce) = maybe_create_block(prev_block_hash, transactions, transaction_count, nonce + 1);
+        block = new_block;
+        nonce = new_nonce;
+        block_hash = block_hash(block);
+    }
+    return (block, nonce);
+}
+
+func maybe_create_block(prev_block_hash: felt, transactions: Transaction*, transaction_count: felt, nonce: felt) -> (Block, felt) {
+    let block = Block(prev_block_hash=prev_block_hash, transactions=transactions, transaction_count=transaction_count, nonce=nonce);
+    return (block, nonce);
+}
